@@ -1,5 +1,6 @@
 ﻿namespace Core.Util
 {
+    using NPOI.HSSF.UserModel;
     using NPOI.SS.UserModel;
     using NPOI.SS.Util;
     using System;
@@ -12,6 +13,11 @@
     public static class ExcelUtil
     {
         /// <summary>
+        /// 日期格式化字符串
+        /// </summary>
+        private const string DATE_FORMATTER_PATTERN = "yyyy-MM-dd";
+
+        /// <summary>
         /// 通用导入Excel工具类
         /// </summary>
         /// <param name="stream">excel文件流</param>
@@ -20,6 +26,11 @@
         public static List<Dictionary<string, object>> ImportExcel(Stream stream, int titleRownum = 1)
         {
             List<Dictionary<string, object>> list = new List<Dictionary<string, object>>();
+            if (titleRownum < 0)
+            {
+                return list;
+            }
+
             IWorkbook workbook = null;
             ISheet sheet = null;
 
@@ -27,21 +38,9 @@
             {
                 workbook = WorkbookFactory.Create(stream);
                 sheet = workbook.GetSheetAt(0);
-            }
-            catch (Exception)
-            {
-                return list;
-            }
 
-            if (titleRownum < 0)
-            {
-                return null;
-            }
-
-            try
-            {
                 int sheetCount = sheet.LastRowNum;
-                int sheetMergeCount = sheet.NumMergedRegions;
+
                 IRow row = null;
                 Dictionary<string, int> titleMap = new Dictionary<string, int>();
 
@@ -53,86 +52,141 @@
                         continue;
                     }
 
-                    #region 解析标题行
-
+                    // 解析标题行
                     if (row.RowNum == titleRownum - 1)
                     {
                         List<ICell> cellList = row.Cells;
-                        int index = 0;
-                        object cellValue = null;
 
-                        foreach (ICell cellItem in cellList)
-                        {
-                            if (sheetMergeCount > 0)
-                            {
-                                for (int i = 0; i < sheetMergeCount; i++)
-                                {
-                                    CellRangeAddress range = sheet.GetMergedRegion(i);
-                                    int firstColumn = range.FirstColumn;
-                                    int lastColumn = range.LastColumn;
-                                    int firstRow = range.FirstRow;
-                                    int lastRow = range.LastRow;
+                        ParsingExcelHeader(sheet, titleMap, cellList);
 
-                                    if (cellItem.RowIndex == firstRow
-                                        && cellItem.RowIndex == lastRow
-                                        && cellItem.ColumnIndex >= firstColumn
-                                        && cellItem.ColumnIndex >= lastColumn)
-                                    {
-                                        for (int j = firstColumn; j <= lastColumn; j++)
-                                        {
-                                            index = j;
-
-                                            cellValue = GetCellValue(sheet.GetRow(firstRow + 1).GetCell(j));
-
-                                            titleMap.Add(null == cellValue ? "" : cellValue.ToString(), index);
-                                        }
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                cellValue = GetCellValue(cellItem);
-
-                                titleMap.Add(null == cellValue ? "" : cellValue.ToString(), index);
-                            }
-
-                            index++;
-                        }
+                        // 标题行解析完成跳出本次循环
+                        continue;
                     }
 
-                    #endregion 解析标题行
-
-                    if (row.RowNum == titleRownum - 1)
+                    //若整行都为空，则跳过该行
+                    bool allRowIsNull = CheckAllRowIsNull(row);
+                    if (allRowIsNull)
                     {
                         continue;
                     }
 
-                    Dictionary<string, object> map = new Dictionary<string, object>();
-                    foreach (string key in titleMap.Keys)
-                    {
-                        int index = titleMap[key];
-
-                        object contentCellValue = GetCellValue(row.GetCell(index));
-                        map.Add(key, null == contentCellValue ? "" : contentCellValue.ToString());
-                    }
-
+                    Dictionary<string, object> map = GetRowMap(titleMap, row);
                     list.Add(map);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 //TODO:记录日志
-                throw;
             }
             finally
             {
-                workbook.Close();
-                stream.Close();
+                if (null != workbook)
+                {
+                    workbook.Close();
+                }
+
+                stream.Dispose();
             }
 
             return list;
         }
 
+        /// <summary>
+        /// 获取当前行数据
+        /// </summary>
+        /// <param name="titleMap">excel标题行</param>
+        /// <param name="row">row对象</param>
+        /// <returns></returns>
+        private static Dictionary<string, object> GetRowMap(Dictionary<string, int> titleMap, IRow row)
+        {
+            Dictionary<string, object> map = new Dictionary<string, object>();
+
+            foreach (string key in titleMap.Keys)
+            {
+                int index = titleMap[key];
+                object contentCellValue = GetCellValue(row.GetCell(index));
+                map.Add(key, null == contentCellValue ? "" : contentCellValue.ToString());
+            }
+
+            return map;
+        }
+
+        /// <summary>
+        /// 检查所有行是否为null
+        /// </summary>
+        /// <param name="row">row对象</param>
+        /// <returns></returns>
+        private static bool CheckAllRowIsNull(IRow row)
+        {
+            bool allRowIsNull = true;
+            List<ICell> validCellList = row.Cells;
+
+            foreach (ICell cell in validCellList)
+            {
+                object cellValue = GetCellValue(cell);
+                if (null != cellValue)
+                {
+                    allRowIsNull = false;
+                    break;
+                }
+            }
+
+            return allRowIsNull;
+        }
+
+        /// <summary>
+        /// 解析excel标题行
+        /// </summary>
+        /// <param name="sheet">sheet对象</param>
+        /// <param name="titleMap">标题行集合</param>
+        /// <param name="cellList">单元格集合</param>
+        private static void ParsingExcelHeader(ISheet sheet, Dictionary<string, int> titleMap, List<ICell> cellList)
+        {
+            int sheetMergeCount = sheet.NumMergedRegions;
+            object cellValue = null;
+            int index = 0;
+
+            foreach (ICell cellItem in cellList)
+            {
+                if (sheetMergeCount > 0)
+                {
+                    for (int i = 0; i < sheetMergeCount; i++)
+                    {
+                        CellRangeAddress range = sheet.GetMergedRegion(i);
+                        int firstColumn = range.FirstColumn;
+                        int lastColumn = range.LastColumn;
+                        int firstRow = range.FirstRow;
+                        int lastRow = range.LastRow;
+
+                        if (cellItem.RowIndex == firstRow
+                            && cellItem.RowIndex == lastRow
+                            && cellItem.ColumnIndex >= firstColumn
+                            && cellItem.ColumnIndex >= lastColumn)
+                        {
+                            for (int j = firstColumn; j <= lastColumn; j++)
+                            {
+                                index = j;
+                                cellValue = GetCellValue(sheet.GetRow(firstRow + 1).GetCell(j));
+                                titleMap.Add(null == cellValue ? "" : cellValue.ToString(), index);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    cellValue = GetCellValue(cellItem);
+                    titleMap.Add(null == cellValue ? "" : cellValue.ToString(), index);
+                }
+
+                index++;
+            }
+        }
+
+        /// <summary>
+        /// 获取单元格值
+        /// </summary>
+        /// <param name="cell">cell对象</param>
+        /// <returns></returns>
         private static object GetCellValue(ICell cell)
         {
             if (cell == null || (cell.CellType == CellType.String
@@ -158,9 +212,17 @@
                     return cell.NumericCellValue;
 
                 case CellType.Numeric:
-                    cell.SetCellType(CellType.String);
-                    return cell.StringCellValue;
-
+                    // 区分日期格式类型
+                    if (HSSFDateUtil.IsCellDateFormatted(cell))
+                    {
+                        DateTime date = cell.DateCellValue;
+                        return date.ToString(DATE_FORMATTER_PATTERN);
+                    }
+                    else
+                    {
+                        cell.SetCellType(CellType.String);
+                        return cell.StringCellValue;
+                    }
                 case CellType.String:
                     return cell.StringCellValue;
 
