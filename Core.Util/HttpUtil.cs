@@ -89,7 +89,6 @@
             string retString = string.Empty;
             try
             {
-
                 myResponse = (HttpWebResponse)request.GetResponse();
                 myResponseStream = myResponse.GetResponseStream();
                 myStreamReader = new StreamReader(myResponseStream, Encoding.GetEncoding("UTF-8"));

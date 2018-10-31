@@ -141,6 +141,5 @@
 
             return date.Long2Date().ToString(pattern);
         }
-
     }
 }
