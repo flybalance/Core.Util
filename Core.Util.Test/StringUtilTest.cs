@@ -1,7 +1,7 @@
-﻿using Xunit;
-
-namespace Core.Util.Test
+﻿namespace Core.Util.Test
 {
+    using Xunit;
+
     public class StringUtilTest
     {
         [Fact]
