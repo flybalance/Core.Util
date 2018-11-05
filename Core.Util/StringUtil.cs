@@ -1,5 +1,8 @@
 ﻿namespace Core.Util
 {
+    /// <summary>
+    /// String操作工具类
+    /// </summary>
     public static class StringUtil
     {
         /// <summary>
@@ -15,12 +18,7 @@
                 return false;
             }
 
-            if (str.Length <= length)
-            {
-                return false;
-            }
-
-            return true;
+            return str.Length > length;
         }
     }
 }
