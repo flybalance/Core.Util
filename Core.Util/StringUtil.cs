@@ -3,7 +3,7 @@
     public static class StringUtil
     {
         /// <summary>
-        /// 
+        /// 字符串长度判断
         /// </summary>
         /// <param name="str"></param>
         /// <param name="length"></param>
@@ -22,6 +22,5 @@
 
             return true;
         }
-
     }
 }
