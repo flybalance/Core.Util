@@ -11,7 +11,7 @@
         /// <param name="str"></param>
         /// <param name="length"></param>
         /// <returns></returns>
-        public static bool IsOutOfAllow(string str, int length)
+        public static bool IsOutOfAllow(this string str, int length)
         {
             if (string.IsNullOrEmpty(str))
             {
