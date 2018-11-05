@@ -11,10 +11,8 @@ namespace Core.Util.Test
 
             string str = PinyinUtil.GetPinYin(chineseStr);
 
-
             Assert.True(true);
         }
-
 
         [Fact]
         public void GetSimplifiedPinYin()
@@ -25,6 +23,5 @@ namespace Core.Util.Test
 
             Assert.True(true);
         }
-
     }
 }
