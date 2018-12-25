@@ -11,7 +11,7 @@
         /// <summary>
         /// 延迟加载
         /// </summary>
-        private static Lazy<T> _instance;
+        private static Lazy<T> instance;
 
         private static readonly object sync = new object();
 
@@ -22,21 +22,22 @@
         /// <summary>
         /// 创建实例
         /// </summary>
-        public static T Instance
+        public static T GetInstance
         {
             get
             {
-                if (_instance == null)
+                if (instance == null)
                 {
                     lock (sync)
                     {
-                        if (_instance == null)
+                        if (instance == null)
                         {
-                            _instance = new Lazy<T>();
+                            instance = new Lazy<T>();
                         }
                     }
                 }
-                return _instance.Value;
+
+                return instance.Value;
             }
         }
     }
